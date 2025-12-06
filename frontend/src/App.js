@@ -6,27 +6,22 @@ const API_URL = process.env.REACT_APP_API_URL;
 
 function App() {
   const [expenses, setExpenses] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState("");
 
+  // Fetch all expenses
   useEffect(() => {
-    // Fetch expenses
     axios.get(`${API_URL}/api/expenses`)
-      .then(res => setExpenses(res.data))
-      .catch(err => console.error(err));
-
-    // Fetch categories
-    axios.get(`${API_URL}/api/categories`)
-      .then(res => setCategories(res.data))
-      .catch(err => console.error(err));
+      .then((res) => setExpenses(res.data))
+      .catch((err) => console.error(err));
   }, []);
 
+  // Add a new expense
   const handleAdd = (e) => {
     e.preventDefault();
-    if (!name || !amount || parseFloat(amount) <= 0 || !categoryId) {
-      alert("Please enter a valid name, amount, and category.");
+
+    if (!name || !amount || parseFloat(amount) <= 0) {
+      alert("Please enter a valid expense name and positive amount.");
       return;
     }
 
@@ -35,25 +30,23 @@ function App() {
     const newExpense = {
       name,
       amount: parseFloat(amount),
-      category_id: parseInt(categoryId),
       date: today
     };
 
     axios.post(`${API_URL}/api/expenses`, newExpense)
-      .then(res => {
-        // Append newly created expense (with id)
-        setExpenses([...expenses, { id: res.data.id, ...newExpense, category: categories.find(c => c.id === parseInt(categoryId)).name }]);
+      .then((res) => {
+        setExpenses([...expenses, { id: res.data.id, ...newExpense }]);
         setName("");
         setAmount("");
-        setCategoryId("");
       })
-      .catch(err => console.error(err));
+      .catch((err) => console.error(err));
   };
 
+  // Delete an expense
   const handleDelete = (id) => {
     axios.delete(`${API_URL}/api/expenses/${id}`)
-      .then(() => setExpenses(expenses.filter(e => e.id !== id)))
-      .catch(err => console.error(err));
+      .then(() => setExpenses(expenses.filter((e) => e.id !== id)))
+      .catch((err) => console.error(err));
   };
 
   const total = expenses.reduce((sum, e) => sum + (isNaN(e.amount) ? 0 : e.amount), 0);
@@ -67,18 +60,14 @@ function App() {
           type="text"
           placeholder="Expense Name"
           value={name}
-          onChange={e => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
         />
         <input
           type="number"
           placeholder="Amount"
           value={amount}
-          onChange={e => setAmount(e.target.value)}
+          onChange={(e) => setAmount(e.target.value)}
         />
-        <select value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-          <option value="">Select Category</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
         <button type="submit">Add Expense</button>
       </form>
 
@@ -86,7 +75,7 @@ function App() {
       <ul>
         {expenses.slice(-5).reverse().map((e, idx) => (
           <li key={idx}>
-            {e.name} - ${e.amount.toFixed(2)} ({e.category || "No category"}) - {e.date}
+            {e.name} - ${e.amount.toFixed(2)} ({e.date})
           </li>
         ))}
       </ul>
@@ -96,20 +85,23 @@ function App() {
           <tr>
             <th>Expense</th>
             <th>Amount</th>
-            <th>Category</th>
             <th>Date</th>
             <th>Delete</th>
           </tr>
         </thead>
         <tbody>
-          {expenses.map(e => (
+          {expenses.map((e) => (
             <tr key={e.id} className="fade-in-row">
               <td>{e.name}</td>
               <td>${e.amount.toFixed(2)}</td>
-              <td>{e.category || "No category"}</td>
               <td>{e.date}</td>
               <td>
-                <button className="delete-button" onClick={() => handleDelete(e.id)}>Delete</button>
+                <button
+                  onClick={() => handleDelete(e.id)}
+                  className="delete-button"
+                >
+                  Delete
+                </button>
               </td>
             </tr>
           ))}
