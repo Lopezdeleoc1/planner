@@ -1,115 +1,89 @@
 import React, { useState, useEffect } from "react";
-import Header from "./components/Header";
-import EventDetails from "./components/EventDetails";
-import ChurchGuests from "./components/ChurchGuests";
-import FoodPlanner from "./components/FoodPlanner";
-import EventScheduler from "./components/EventScheduler";
-import BudgetingTool from "./components/BudgetingTool";
-import Notes from "./components/Notes";
-import Dashboard from "./components/Dashboard";
+import axios from "axios";
 import "./App.css";
 
+const API_URL = process.env.REACT_APP_API_URL; // Make sure this is set in your .env
+
 function App() {
-  const [eventDetails, setEventDetails] = useState(() => {
-    return JSON.parse(localStorage.getItem("eventDetails")) || {
-      name: "",
-      date: "",
-      startTime: "",
-      endTime: "",
-      theme: "",
-      location: "",
-    };
-  });
+  const [expenses, setExpenses] = useState([]);
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
 
-  const [churches, setChurches] = useState(() => {
-    return JSON.parse(localStorage.getItem("churches")) || [];
-  });
+  // Fetch all expenses from backend
+  useEffect(() => {
+    axios.get(`${API_URL}/api/expenses`)
+      .then((res) => setExpenses(res.data))
+      .catch((err) => console.error(err));
+  }, []);
 
-  const [foodItems, setFoodItems] = useState(() => {
-    return JSON.parse(localStorage.getItem("foodItems")) || [];
-  });
+  // Add a new expense
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (!name || !amount) return;
 
-  const [budgetItems, setBudgetItems] = useState(() => {
-    return JSON.parse(localStorage.getItem("budgetItems")) || [];
-  });
+    const newExpense = { name, amount: parseFloat(amount) };
+    axios.post(`${API_URL}/api/expenses`, newExpense)
+      .then((res) => {
+        setExpenses([...expenses, { id: res.data.id, ...newExpense }]);
+        setName("");
+        setAmount("");
+      })
+      .catch((err) => console.error(err));
+  };
 
-  const [activities, setActivities] = useState(() => {
-    return JSON.parse(localStorage.getItem("activities")) || [];
-  });
+  // Delete an expense
+  const handleDelete = (id) => {
+    axios.delete(`${API_URL}/api/expenses/${id}`)
+      .then(() => setExpenses(expenses.filter((e) => e.id !== id)))
+      .catch((err) => console.error(err));
+  };
 
-  const [notes, setNotes] = useState(() => {
-    return JSON.parse(localStorage.getItem("notes")) || [];
-  });
-
-  const [activeComponent, setActiveComponent] = useState(null);
-
-  // Save to localStorage whenever state changes
-  useEffect(() => localStorage.setItem("eventDetails", JSON.stringify(eventDetails)), [eventDetails]);
-  useEffect(() => localStorage.setItem("churches", JSON.stringify(churches)), [churches]);
-  useEffect(() => localStorage.setItem("foodItems", JSON.stringify(foodItems)), [foodItems]);
-  useEffect(() => localStorage.setItem("budgetItems", JSON.stringify(budgetItems)), [budgetItems]);
-  useEffect(() => localStorage.setItem("activities", JSON.stringify(activities)), [activities]);
-  useEffect(() => localStorage.setItem("notes", JSON.stringify(notes)), [notes]);
-
-  const handleBack = () => setActiveComponent(null);
+  const total = expenses.reduce((sum, e) => sum + (isNaN(e.amount) ? 0 : e.amount), 0);
 
   return (
     <div className="app-container">
-      <Header />
+      <h2>Spending Tracker</h2>
 
-      {!activeComponent && (
-        <Dashboard
-          setActiveComponent={setActiveComponent}
-          eventDetails={eventDetails}
-          churches={churches}
-          foodItems={foodItems}
-          budgetItems={budgetItems}
-          activities={activities}
-          notes={notes}
+      <form onSubmit={handleAdd}>
+        <input
+          type="text"
+          placeholder="Expense Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
         />
-      )}
+        <input
+          type="number"
+          placeholder="Amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+        />
+        <button type="submit">Add</button>
+      </form>
 
-      {activeComponent === "EventDetails" && (
-        <div className="fade-in">
-          <button className="back-button" onClick={handleBack}>⬅ Back</button>
-          <EventDetails eventDetails={eventDetails} setEventDetails={setEventDetails} />
-        </div>
-      )}
+      <table>
+        <thead>
+          <tr>
+            <th>Expense</th>
+            <th>Amount</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {expenses.map((e) => (
+            <tr key={e.id} className="fade-in-row">
+              <td>{e.name}</td>
+              <td>${e.amount.toFixed(2)}</td>
+              <td>
+                <button onClick={() => handleDelete(e.id)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-      {activeComponent === "ChurchGuests" && (
-        <div className="fade-in">
-          <button className="back-button" onClick={handleBack}>⬅ Back</button>
-          <ChurchGuests churches={churches} setChurches={setChurches} />
-        </div>
-      )}
-
-      {activeComponent === "FoodPlanner" && (
-        <div className="fade-in">
-          <button className="back-button" onClick={handleBack}>⬅ Back</button>
-          <FoodPlanner foodItems={foodItems} setFoodItems={setFoodItems} />
-        </div>
-      )}
-
-      {activeComponent === "EventScheduler" && (
-        <div className="fade-in">
-          <button className="back-button" onClick={handleBack}>⬅ Back</button>
-          <EventScheduler eventDetails={eventDetails} activities={activities} setActivities={setActivities} />
-        </div>
-      )}
-
-      {activeComponent === "BudgetingTool" && (
-        <div className="fade-in">
-          <button className="back-button" onClick={handleBack}>⬅ Back</button>
-          <BudgetingTool budgetItems={budgetItems} setBudgetItems={setBudgetItems} />
-        </div>
-      )}
-
-      {activeComponent === "Notes" && (
-        <div className="fade-in">
-          <button className="back-button" onClick={handleBack}>⬅ Back</button>
-          <Notes notes={notes} setNotes={setNotes} />
-        </div>
-      )}
+      <h3>Total: ${total.toFixed(2)}</h3>
     </div>
   );
 }
