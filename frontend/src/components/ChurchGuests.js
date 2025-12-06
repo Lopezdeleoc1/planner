@@ -1,104 +1,99 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function ChurchGuests({ churches, setChurches }) {
+export default function ChurchGuests({ churches, setChurches, guests, setGuests }) {
   const [churchName, setChurchName] = useState("");
-  const [guestCount, setGuestCount] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [guestName, setGuestName] = useState("");
+  const [selectedChurch, setSelectedChurch] = useState("");
 
-  // Fetch existing churches from backend
+  // Use environment variable for API base URL
+  const API_URL = process.env.REACT_APP_API_URL;
+
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/churches")
-      .then((res) => {
-        setChurches(res.data || []);
-      })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
-  }, [setChurches]);
+    axios.get(`${API_URL}/api/churches`)
+      .then((res) => setChurches(res.data || []))
+      .catch((err) => console.error(err));
 
-  const handleAdd = (e) => {
+    axios.get(`${API_URL}/api/guests`)
+      .then((res) => setGuests(res.data || []))
+      .catch((err) => console.error(err));
+  }, [setChurches, setGuests, API_URL]);
+
+  const handleAddChurch = (e) => {
     e.preventDefault();
-    if (!churchName || !guestCount) return;
+    if (!churchName) return;
 
-    const newChurch = { name: churchName, guests: Number(guestCount) };
-
-    // Save to backend
-    axios
-      .post("http://localhost:5000/api/churches", newChurch)
-      .then((res) => {
-        setChurches([...churches, res.data]); // Use backend response
-        setChurchName("");
-        setGuestCount("");
-      })
+    axios.post(`${API_URL}/api/church`, { name: churchName })
+      .then((res) => setChurches([...churches, { id: res.data.id, name: churchName }]))
       .catch((err) => console.error(err));
+
+    setChurchName("");
   };
 
-  const handleRemove = (id) => {
-    axios
-      .delete(`http://localhost:5000/api/churches/${id}`)
-      .then(() => {
-        setChurches(churches.filter((c) => c.id !== id));
-      })
+  const handleAddGuest = (e) => {
+    e.preventDefault();
+    if (!guestName || !selectedChurch) return;
+
+    axios.post(`${API_URL}/api/guest`, { name: guestName, churchId: selectedChurch })
+      .then((res) => setGuests([...guests, { id: res.data.id, name: guestName, churchId: selectedChurch }]))
       .catch((err) => console.error(err));
+
+    setGuestName("");
+    setSelectedChurch("");
   };
-
-  const totalGuests = churches.reduce((sum, c) => sum + c.guests, 0);
-
-  if (loading) return <p>Loading church guests...</p>;
 
   return (
     <div className="component-window">
       <h2>Church Guests</h2>
-      <form onSubmit={handleAdd} style={{ marginBottom: "15px" }}>
+
+      <form onSubmit={handleAddChurch} style={{ marginBottom: "15px" }}>
         <input
           className="form-input"
           type="text"
-          placeholder="Church Name"
+          placeholder="New Church Name"
           value={churchName}
           onChange={(e) => setChurchName(e.target.value)}
           required
         />
+        <button className="add-button" type="submit">Add Church</button>
+      </form>
+
+      <form onSubmit={handleAddGuest} style={{ marginBottom: "15px" }}>
         <input
-          className="form-input form-input-small"
-          type="number"
-          placeholder="Guest Count"
-          value={guestCount}
-          onChange={(e) => setGuestCount(e.target.value)}
+          className="form-input"
+          type="text"
+          placeholder="Guest Name"
+          value={guestName}
+          onChange={(e) => setGuestName(e.target.value)}
           required
         />
-        <button type="submit" className="add-button">
-          Add
-        </button>
+        <select value={selectedChurch} onChange={(e) => setSelectedChurch(e.target.value)} required>
+          <option value="">Select Church</option>
+          {churches.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <button className="add-button" type="submit">Add Guest</button>
       </form>
 
       <table className="table">
         <thead>
           <tr>
+            <th>Guest</th>
             <th>Church</th>
-            <th>Guests</th>
-            <th>Remove</th>
           </tr>
         </thead>
         <tbody>
-          {churches.map((c) => (
-            <tr key={c.id}>
-              <td>{c.name}</td>
-              <td>{c.guests}</td>
+          {guests.map((g) => (
+            <tr key={g.id}>
+              <td>{g.name}</td>
               <td>
-                <button
-                  className="remove-button"
-                  onClick={() => handleRemove(c.id)}
-                >
-                  Remove
-                </button>
+                {churches.find((c) => c.id === g.churchId)?.name || "N/A"}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      <h3 style={{ marginTop: "20px" }}>Total Guests: {totalGuests}</h3>
     </div>
   );
 }

@@ -4,13 +4,16 @@ import axios from "axios";
 export default function EventDetails({ eventDetails, setEventDetails }) {
   const [loading, setLoading] = useState(true);
 
+  // Use environment variable for API base URL
+  const API_URL = process.env.REACT_APP_API_URL;
+
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/event")
+      .get(`${API_URL}/api/event`)
       .then((res) => setEventDetails(res.data || {}))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [setEventDetails]);
+  }, [setEventDetails, API_URL]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -20,7 +23,7 @@ export default function EventDetails({ eventDetails, setEventDetails }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     axios
-      .post("http://localhost:5000/api/event", eventDetails)
+      .post(`${API_URL}/api/event`, eventDetails)
       .then(() => alert("Event saved successfully!"))
       .catch((err) => console.error(err));
   };

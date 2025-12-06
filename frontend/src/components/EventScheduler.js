@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 export default function EventScheduler({ eventDetails, handleBack }) {
   const [activities, setActivities] = useState([]);
@@ -7,15 +8,15 @@ export default function EventScheduler({ eventDetails, handleBack }) {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
-  // Load activities from backend
-  useEffect(() => {
-    fetch("http://localhost:5000/api/activities")
-      .then((res) => res.json())
-      .then((data) => setActivities(data))
-      .catch((err) => console.error("Error loading activities:", err));
-  }, []);
+  const API_URL = process.env.REACT_APP_API_URL;
 
-  // Helper: format time in 12-hour format with AM/PM
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/api/activities`)
+      .then((res) => setActivities(res.data))
+      .catch((err) => console.error(err));
+  }, [API_URL]);
+
   const format12Hour = (timeStr) => {
     if (!timeStr) return "";
     let [h, m] = timeStr.split(":").map(Number);
@@ -24,13 +25,10 @@ export default function EventScheduler({ eventDetails, handleBack }) {
     return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
   };
 
-  // Calculate remaining time
   const getTimeRemaining = () => {
     if (!eventDetails.startTime || !eventDetails.endTime) return 0;
-
     const [startH, startM] = eventDetails.startTime.split(":").map(Number);
     const [endH, endM] = eventDetails.endTime.split(":").map(Number);
-
     const totalEventMinutes = (endH * 60 + endM) - (startH * 60 + startM);
 
     const usedMinutes = activities.reduce((sum, a) => {
@@ -42,41 +40,31 @@ export default function EventScheduler({ eventDetails, handleBack }) {
     return totalEventMinutes - usedMinutes;
   };
 
-  // Add activity (POST to backend)
   const handleAdd = (e) => {
     e.preventDefault();
     if (!title || !startTime || !endTime) return;
 
-    fetch("http://localhost:5000/api/activity", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description, startTime, endTime }),
-    })
-      .then((res) => res.json())
-      .then((newActivity) => {
+    axios
+      .post(`${API_URL}/api/activity`, { title, description, startTime, endTime })
+      .then((res) =>
         setActivities([
           ...activities,
-          {
-            id: newActivity.id,
-            title,
-            description,
-            startTime,
-            endTime,
-          },
-        ]);
-        setTitle("");
-        setDescription("");
-        setStartTime("");
-        setEndTime("");
-      })
-      .catch((err) => console.error("Error adding activity:", err));
+          { id: res.data.id, title, description, startTime, endTime },
+        ])
+      )
+      .catch((err) => console.error(err));
+
+    setTitle("");
+    setDescription("");
+    setStartTime("");
+    setEndTime("");
   };
 
-  // Remove activity (local only for now)
-  const handleRemove = (index) => {
-    const updated = [...activities];
-    updated.splice(index, 1);
-    setActivities(updated);
+  const handleRemove = (id) => {
+    axios
+      .delete(`${API_URL}/api/activity/${id}`)
+      .then(() => setActivities(activities.filter((a) => a.id !== id)))
+      .catch((err) => console.error(err));
   };
 
   const formatTime = (minutes) => {
@@ -91,7 +79,6 @@ export default function EventScheduler({ eventDetails, handleBack }) {
       <button onClick={handleBack} style={{ float: "right", marginBottom: "10px" }}>
         ⬅ Back
       </button>
-
       <p>
         <strong>Time Remaining:</strong> {formatTime(getTimeRemaining())}
       </p>
@@ -142,17 +129,14 @@ export default function EventScheduler({ eventDetails, handleBack }) {
           </tr>
         </thead>
         <tbody>
-          {activities.map((a, index) => (
-            <tr key={index}>
+          {activities.map((a) => (
+            <tr key={a.id}>
               <td>{a.title}</td>
               <td>{a.description}</td>
               <td>{format12Hour(a.startTime)}</td>
               <td>{format12Hour(a.endTime)}</td>
               <td>
-                <button
-                  className="remove-button"
-                  onClick={() => handleRemove(index)}
-                >
+                <button className="remove-button" onClick={() => handleRemove(a.id)}>
                   Remove
                 </button>
               </td>

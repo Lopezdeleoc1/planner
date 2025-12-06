@@ -1,50 +1,43 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 export default function Notes({ notes, setNotes }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Load notes from backend
-  useEffect(() => {
-    fetch("http://localhost:5000/api/notes")
-      .then(res => res.json())
-      .then(data => {
-        setNotes(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Error loading notes:", err);
-        setLoading(false);
-      });
-  }, [setNotes]);
+  // Use environment variable for API URL (works locally and when deployed)
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-  // Add a note
+  // Fetch notes from backend
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/api/notes`)
+      .then((res) => setNotes(res.data || []))
+      .catch((err) => console.error("Error fetching notes:", err))
+      .finally(() => setLoading(false));
+  }, [setNotes, API_URL]);
+
   const handleAdd = (e) => {
     e.preventDefault();
     if (!title) return;
 
     const newNote = { title, description };
 
-    fetch("http://localhost:5000/api/note", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newNote),
-    })
-      .then(res => res.json())
-      .then(createdNote => {
-        setNotes([...notes, { id: createdNote.id, ...newNote }]);
-        setTitle("");
-        setDescription("");
-      })
-      .catch(err => console.error("Error adding note:", err));
+    axios
+      .post(`${API_URL}/api/note`, newNote)
+      .then((res) => setNotes([...notes, { id: res.data.id, ...newNote }]))
+      .catch((err) => console.error("Error adding note:", err));
+
+    setTitle("");
+    setDescription("");
   };
 
-  // Remove a note
   const handleRemove = (id) => {
-    fetch(`http://localhost:5000/api/note/${id}`, { method: "DELETE" })
-      .then(() => setNotes(notes.filter(note => note.id !== id)))
-      .catch(err => console.error("Error removing note:", err));
+    axios
+      .delete(`${API_URL}/api/note/${id}`)
+      .then(() => setNotes(notes.filter((n) => n.id !== id)))
+      .catch((err) => console.error("Error removing note:", err));
   };
 
   if (loading) return <p>Loading notes...</p>;
@@ -59,7 +52,7 @@ export default function Notes({ notes, setNotes }) {
           type="text"
           placeholder="Title"
           value={title}
-          onChange={e => setTitle(e.target.value)}
+          onChange={(e) => setTitle(e.target.value)}
           required
         />
         <input
@@ -67,7 +60,7 @@ export default function Notes({ notes, setNotes }) {
           type="text"
           placeholder="Description"
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
         />
         <button className="add-button" type="submit">Add Note</button>
       </form>
@@ -81,7 +74,7 @@ export default function Notes({ notes, setNotes }) {
           </tr>
         </thead>
         <tbody>
-          {notes.map(note => (
+          {notes.map((note) => (
             <tr key={note.id}>
               <td>{note.title}</td>
               <td>{note.description}</td>
